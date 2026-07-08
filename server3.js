@@ -2,7 +2,6 @@ import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import fs from 'fs';
 
 dotenv.config();
 
@@ -27,36 +26,6 @@ const ENVISION_TRAVEL_AGENCY_ID                = Number(process.env.ENVISION_TRA
 const ENVISION_TRAVEL_AGENCY_SYSTEM_ACCOUNT_ID = Number(process.env.ENVISION_TRAVEL_AGENCY_SYSTEM_ACCOUNT_ID || 0);
 const ENVISION_SYSTEM_ACCOUNT_ID               = Number(process.env.ENVISION_SYSTEM_ACCOUNT_ID || 0);
 const ENVISION_RECORD_TYPE                     = process.env.ENVISION_RECORD_TYPE || 'Person';
-
-// ======================= RECORDS MAP =======================
-const RECORDS_MAP_FILE = 'C:/Users/Migue/Desktop/records-map.json';
-
-function loadRecordsMap() {
-  try {
-    if (fs.existsSync(RECORDS_MAP_FILE)) {
-      return JSON.parse(fs.readFileSync(RECORDS_MAP_FILE, 'utf8'));
-    }
-  } catch (err) {
-    console.warn('[RecordsMap] Erro ao carregar:', err.message);
-  }
-  return {};
-}
-
-function findRecordIdInMap(cpf, email) {
-  const map = loadRecordsMap();
-
-  if (cpf) {
-    const id = map[cpf] || map[cpf.replace(/\D/g, '')];
-    if (id) return id;
-  }
-
-  if (email) {
-    const id = map[email.toLowerCase()];
-    if (id) return id;
-  }
-
-  return null;
-}
 
 console.log('Token CRM legado carregado?', !!RD_CRM_API_TOKEN);
 console.log('Envision BASE_URL carregado?', !!ENVISION_BASE_URL);
@@ -1036,234 +1005,59 @@ function buildPostPayload(formData, existingId = null) {
   return payload;
 }
 
-// ======================= BUILD PAYLOAD PATCH =======================
-function buildPatchPayload(formData, existingId) {
-  const cpf = safeString(formData.cpf);
-  const email = safeString(formData.email);
-
-  const customFields = removeEmptyDeep({
-    rg: safeString(formData.rg),
-    RG: safeString(formData.rg),
-    rne: safeString(formData.rne),
-    RNE: safeString(formData.rne),
-
-    numPassaporte: safeString(formData.numPassaporte),
-    num_passaporte: safeString(formData.numPassaporte),
-    paisEmissor: safeString(formData.paisEmissor),
-    pais_emissor: safeString(formData.paisEmissor),
-    dataEmissao: safeString(formData.dataEmissao),
-    data_emissao: safeString(formData.dataEmissao),
-    dataExpiracao: safeString(formData.dataExpiracao),
-    data_expiracao: safeString(formData.dataExpiracao),
-
-    possuiPassaporteEstrangeiro: boolToSimNao(boolToBoolean(formData.possuiPassaporteEstrangeiro)),
-    possui_passaporte_estrangeiro: boolToSimNao(boolToBoolean(formData.possuiPassaporteEstrangeiro)),
-    numPassaporteEstrangeiro: safeString(formData.numPassaporteEstrangeiro),
-    num_passaporte_estrangeiro: safeString(formData.numPassaporteEstrangeiro),
-    paisEmissorEstrangeiro: safeString(formData.paisEmissorEstrangeiro),
-    pais_emissor_estrangeiro: safeString(formData.paisEmissorEstrangeiro),
-    dataEmissaoEstrangeiro: safeString(formData.dataEmissaoEstrangeiro),
-    data_emissao_estrangeiro: safeString(formData.dataEmissaoEstrangeiro),
-    dataExpiracaoEstrangeiro: safeString(formData.dataExpiracaoEstrangeiro),
-    data_expiracao_estrangeiro: safeString(formData.dataExpiracaoEstrangeiro),
-
-    nomeContato: safeString(formData.nomeContato),
-    nome_contato_emergencia: safeString(formData.nomeContato),
-    grauParentesco: safeString(formData.grauParentesco),
-    grau_parentesco: safeString(formData.grauParentesco),
-    telefoneEmergencia: safeString(formData.telefoneEmergencia),
-    telefone_emergencia: safeString(formData.telefoneEmergencia),
-    emailEmergencia: safeString(formData.emailEmergencia),
-    email_emergencia: safeString(formData.emailEmergencia),
-    nomeMedico: safeString(formData.nomeMedico),
-    nome_medico: safeString(formData.nomeMedico),
-    telefoneMedico: safeString(formData.telefoneMedico),
-    telefone_medico: safeString(formData.telefoneMedico),
-
-    altura: safeString(formData.altura),
-    'Person.Height': safeString(formData.altura),
-    peso: safeString(formData.peso),
-    'Person.Weight': safeString(formData.peso),
-    tamanhoRoupa: safeString(formData.tamanhoRoupa),
-    tamanho_roupa: safeString(formData.tamanhoRoupa),
-    'Person.ClothingNumber': safeString(formData.tamanhoRoupa),
-    numeroCalcado: safeString(formData.numeroCalcado),
-    numero_calcado: safeString(formData.numeroCalcado),
-    'Person.ShoeNumber': safeString(formData.numeroCalcado),
-    idiomas: safeString(formData.idiomas),
-    'Person.Languages': safeString(formData.idiomas),
-    tipoSanguineo: safeString(formData.tipoSanguineo),
-    tipo_sanguineo: safeString(formData.tipoSanguineo),
-    'Person.BloodType': safeString(formData.tipoSanguineo),
-    preferenciaAssento: safeString(formData.preferenciaAssento),
-    preferencia_assento: safeString(formData.preferenciaAssento),
-    dataCheckup: safeString(formData.dataCheckup),
-    data_checkup: safeString(formData.dataCheckup),
-    'Person.LastCheckUp': safeString(formData.dataCheckup),
-    saudavel: safeString(formData.saudavel),
-    'Person.Healthy': safeString(formData.saudavel),
-    atividadeFisica: safeString(formData.atividadeFisica),
-    atividade_fisica: safeString(formData.atividadeFisica),
-    'Person.PhysicalActivity': safeString(formData.atividadeFisica),
-    sabeNadar: safeString(formData.sabeNadar),
-    sabe_nadar: safeString(formData.sabeNadar),
-    'Person.Swim': safeString(formData.sabeNadar),
-
-    restricaoFisica: boolToSimNao(boolToBoolean(formData.restricaoFisica)),
-    restricao_fisica: boolToSimNao(boolToBoolean(formData.restricaoFisica)),
-    restricaoFisicaTexto: safeString(formData.restricaoFisicaTexto),
-    restricao_fisica_detalhes: safeString(formData.restricaoFisicaTexto),
-
-    doencaCronica: boolToSimNao(boolToBoolean(formData.doencaCronica)),
-    doenca_cronica: boolToSimNao(boolToBoolean(formData.doencaCronica)),
-    doencaCronicaTexto: safeString(formData.doencaCronicaTexto),
-    doenca_cronica_detalhes: safeString(formData.doencaCronicaTexto),
-
-    medicamentoContinuo: boolToSimNao(boolToBoolean(formData.medicamentoContinuo)),
-    medicamento_continuo: boolToSimNao(boolToBoolean(formData.medicamentoContinuo)),
-    medicamentoContinuoTexto: safeString(formData.medicamentoContinuoTexto),
-    medicamento_continuo_texto: safeString(formData.medicamentoContinuoTexto),
-    medicamento_continuo_detalhes: safeString(formData.medicamentoContinuoTexto),
-    'Person.Medicine': safeString(formData.medicamentoContinuoTexto),
-    'person.Medicine': safeString(formData.medicamentoContinuoTexto),
-    Medicine: safeString(formData.medicamentoContinuoTexto),
-    medicine: safeString(formData.medicamentoContinuoTexto),
-
-    cirurgia: boolToSimNao(boolToBoolean(formData.cirurgia)),
-    motivoCirurgia: safeString(formData.motivoCirurgia),
-    motivo_cirurgia: safeString(formData.motivoCirurgia),
-
-    questaoMedica: boolToSimNao(boolToBoolean(formData.questaoMedica)),
-    questao_medica: boolToSimNao(boolToBoolean(formData.questaoMedica)),
-    questaoMedicaTexto: safeString(formData.questaoMedicaTexto),
-    questao_medica_detalhes: safeString(formData.questaoMedicaTexto),
-
-    alergias: boolToSimNao(boolToBoolean(formData.alergias)),
-    alergiasTexto: safeString(formData.alergiasTexto),
-    alergias_texto: safeString(formData.alergiasTexto),
-    alergias_detalhes: safeString(formData.alergiasTexto),
-    'Person.Allergy': safeString(formData.alergiasTexto),
-    'person.Allergy': safeString(formData.alergiasTexto),
-    Allergy: safeString(formData.alergiasTexto),
-    allergy: safeString(formData.alergiasTexto),
-
-    vacinas: safeString(formData.vacinas),
-    acompanhamentoPsiquiatrico: safeString(formData.acompanhamentoPsiquiatrico),
-    acompanhamento_psiquiatrico: safeString(formData.acompanhamentoPsiquiatrico),
-    'Person.PsychiatricQuestion': safeString(formData.acompanhamentoPsiquiatrico),
-    tratamentoOdontologico: safeString(formData.tratamentoOdontologico),
-    tratamento_odontologico: safeString(formData.tratamentoOdontologico),
-    'Person.DentalQuestion': safeString(formData.tratamentoOdontologico),
-    fumante: boolToSimNao(boolToBoolean(formData.fumante)),
-    'Person.Smoker': boolToSimNao(boolToBoolean(formData.fumante)),
-
-    dieta: boolToSimNao(boolToBoolean(formData.dieta)),
-    dietaTexto: safeString(formData.dietaTexto),
-    dieta_detalhes: safeString(formData.dietaTexto),
-    alimentosNaoCome: safeString(formData.restricaoAlimentos || formData.alimentosNaoCome),
-    alimentos_nao_come: safeString(formData.restricaoAlimentos || formData.alimentosNaoCome),
-    'Person.DislikedFood': safeString(formData.restricaoAlimentos || formData.alimentosNaoCome),
-    restricaoAlimentos: safeString(formData.restricaoAlimentos),
-    restricao_alimentos: safeString(formData.restricaoAlimentos),
-    'Person.Diet': safeString(formData.restricaoAlimentos || formData.alimentosNaoCome),
-
-    bebidaAlcoolica: safeString(formData.bebidaAlcoolica),
-    bebida_alcoolica: safeString(formData.bebidaAlcoolica),
-    'Person.AlcoholicBeverage': safeString(formData.bebidaAlcoolica),
-
-    receberCatalogos: safeString(formData.receberCatalogos),
-    receber_catalogos: safeString(formData.receberCatalogos),
-    'Person.Catalog': safeString(formData.receberCatalogos),
-    enderecoPostalIgual: safeString(formData.enderecoPostalIgual),
-    endereco_postal_igual: safeString(formData.enderecoPostalIgual),
-    enderecoPostalDiferente: safeString(formData.enderecoPostalDiferente),
-    endereco_postal_diferente: safeString(formData.enderecoPostalDiferente),
-
-    comentarios: safeString(formData.comentarios),
-    comentarios_extras: safeString(formData.comentarios),
-    'Person.Comments': safeString(formData.comentarios),
-
-    formOrigin: safeString(formData.form_origin),
-    form_origin: safeString(formData.form_origin),
-    sentAt: safeString(formData.sent_at),
-    sent_at: safeString(formData.sent_at)
-  });
-
-  return {
-    externalId: cpf.replace(/\D/g, '') || email,
-    companyContext: {
-      consolidator: {
-        id: ENVISION_CONSOLIDATOR_ID,
-        systemAccountId: ENVISION_CONSOLIDATOR_SYSTEM_ACCOUNT_ID
-      },
-      travelAgency: {
-        id: ENVISION_TRAVEL_AGENCY_ID,
-        systemAccountId: ENVISION_TRAVEL_AGENCY_SYSTEM_ACCOUNT_ID
-      }
-    },
-    costCenters: [],
-    customFields
-  };
-}
-
-// ======================= UPSERT =======================
+// ======================= UPSERT (SEM RECORDS-MAP) =======================
 async function sendFormToEnvision(formData) {
   const token = await getEnvisionToken();
   const cpf = safeString(formData.cpf);
   const email = safeString(formData.email);
   const cpfDigits = onlyDigits(cpf);
 
-let existingId = findRecordIdInMap(cpf, email);
-  if (existingId) {
-    console.log(`[RecordsMap] ID encontrado no mapa local: ${existingId}`);
-  }
-
+  // Fonte de verdade: Envision. Busca o registro por externalId (CPF/email).
+  let existingId = null;
   const candidates = [...new Set([cpfDigits, cpf, email].filter(Boolean))];
 
-  if (!existingId) {
-    for (const candidate of candidates) {
+  for (const candidate of candidates) {
+    try {
+      const url = `${ENVISION_BASE_URL}/Records/Query`;
+      const body = {
+        criteria: `externalId = "${candidate}"`,
+        sortFields: [],
+        pagingPivotId: 0,
+        pagingPivotValues: [],
+        additionalInfo: {
+          travelAgencyId: ENVISION_TRAVEL_AGENCY_ID,
+          systemAccountId: ENVISION_SYSTEM_ACCOUNT_ID
+        }
+      };
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const text = await resp.text();
+      console.log(`[Envision] Records/Query (${candidate}) status: ${resp.status} | body: ${text}`);
+
+      let data;
       try {
-        const url = `${ENVISION_BASE_URL}/Records/Query`;
-        const body = {
-          criteria: `externalId = "${candidate}"`,
-          sortFields: [],
-          pagingPivotId: 0,
-          pagingPivotValues: [],
-          additionalInfo: {
-            travelAgencyId: ENVISION_TRAVEL_AGENCY_ID,
-            systemAccountId: ENVISION_SYSTEM_ACCOUNT_ID
-          }
-        };
-
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(body)
-        });
-
-        const text = await resp.text();
-        console.log(`[Envision] Records/Query (${candidate}) status: ${resp.status} | body: ${text}`);
-
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = null;
-        }
-
-        if (resp.ok && data?.successful !== false) {
-          const records = Array.isArray(data?.records) ? data.records : [];
-          if (records[0]?.id) {
-            existingId = records[0].id;
-            break;
-          }
-        }
-      } catch (err) {
-        console.warn(`[Envision] Erro Records/Query (${candidate}):`, err.message);
+        data = JSON.parse(text);
+      } catch {
+        data = null;
       }
+
+      if (resp.ok && data?.successful !== false) {
+        const records = Array.isArray(data?.records) ? data.records : [];
+        if (records[0]?.id) {
+          existingId = records[0].id;
+          break;
+        }
+      }
+    } catch (err) {
+      console.warn(`[Envision] Erro Records/Query (${candidate}):`, err.message);
     }
   }
 
@@ -1461,6 +1255,5 @@ app.get('/envision/records/:id', async (req, res) => {
 
 // ======================= START =======================
 app.listen(PORT, () => {
-  console.log(`✅ Servidor RD Webhook + Envision /Records (Person) rodando em http://localhost:${PORT}`);
-  console.log(`[RecordsMap] Arquivo: ${RECORDS_MAP_FILE}`);
+  console.log(`✅ Servidor RD Webhook + Envision /Records (Person) rodando na porta ${PORT}`);
 });
