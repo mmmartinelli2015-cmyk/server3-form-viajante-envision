@@ -1213,7 +1213,7 @@ async function sendFormToEnvision(formData) {
   const email = safeString(formData.email);
   const cpfDigits = onlyDigits(cpf);
 
-  let existingId = findRecordIdInMap(cpf, email);
+let existingId = findRecordIdInMap(cpf, email);
   if (existingId) {
     console.log(`[RecordsMap] ID encontrado no mapa local: ${existingId}`);
   }
